@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeekEDH API Test Suite</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="text-center mb-4">
+        <img src="https://via.placeholder.com/1200x300?text=API+Test+Suite" class="img-fluid" alt="API Test">
+    </div>
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="text-center">SeekEDH API Test Suite</h1>
+                <p class="text-center text-muted">Interact with all backend endpoints and update data sources</p>
+                
+                <div class="mb-3">
+                    <label for="apiUrl" class="form-label">API URL:</label>
+                    <input type="text" class="form-control" id="apiUrl" value="http://localhost:5000">
+                </div>
+            </div>
+        </div>
+        
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="deck-tab" data-bs-toggle="tab" data-bs-target="#deck" type="button" role="tab" aria-controls="deck" aria-selected="true">Generate Deck</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="get-deck-tab" data-bs-toggle="tab" data-bs-target="#get-deck" type="button" role="tab" aria-controls="get-deck" aria-selected="false">Get Deck</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="status-tab" data-bs-toggle="tab" data-bs-target="#status" type="button" role="tab" aria-controls="status" aria-selected="false">API Status</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button" role="tab" aria-controls="database" aria-selected="false">Database</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button" role="tab" aria-controls="data" aria-selected="false">Data</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="price-tab" data-bs-toggle="tab" data-bs-target="#price" type="button" role="tab" aria-controls="price" aria-selected="false">Price Embeddings</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="rag-tab" data-bs-toggle="tab" data-bs-target="#rag" type="button" role="tab" aria-controls="rag" aria-selected="false">RAG Endpoints</button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="myTabContent">
+            <!-- Generate Deck Tab -->
+            <div class="tab-pane fade show active" id="deck" role="tabpanel" aria-labelledby="deck-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Deck Generation Settings</div>
+                            <div class="card-body">
+                                <form id="deckForm">
+                                    <div class="mb-3">
+                                        <label for="strategy" class="form-label">Deck Strategy</label>
+                                        <textarea class="form-control" id="strategy" rows="3" placeholder="Describe your deck strategy in detail..." required></textarea>
+                                        <div class="form-text">Example: "A flying deck with exile effects"</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="commander" class="form-label">Commander (Optional)</label>
+                                        <input type="text" class="form-control" id="commander" placeholder="Enter commander name...">
+                                        <div class="form-text">Example: "Ob Nixilis, Captive Kingpin"</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="bracket" class="form-label">Power Level Bracket</label>
+                                        <select class="form-select" id="bracket">
+                                            <option value="1">1 - Exhibition (Casual, Theme-focused)</option>
+                                            <option value="2" selected>2 - Core (Balanced, Precon-level)</option>
+                                            <option value="3">3 - Upgraded (Tuned, Higher Power)</option>
+                                            <option value="4">4 - Optimized (High-powered)</option>
+                                            <option value="5">5 - cEDH (Competitive)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="maxPrice" class="form-label">Maximum Price (Optional)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="maxPrice" placeholder="e.g., 200">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="landQuality" class="form-label">Land Quality</label>
+                                        <select class="form-select" id="landQuality">
+                                            <option value="competitive">Competitive (Optimal)</option>
+                                            <option value="balanced" selected>Balanced (Mix)</option>
+                                            <option value="budget">Budget (Affordable)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Generation Method</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="generationMethod" id="methodRag" value="rag" checked>
+                                            <label class="form-check-label" for="methodRag">
+                                                RAG-based (Retrieval Augmented Generation)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="generationMethod" id="methodModel" value="model">
+                                            <label class="form-check-label" for="methodModel">
+                                                AI Model-based (Uses pre-trained model)
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Model-based generation may be more creative but less accurate. Will fall back to RAG if model is unavailable.</div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary w-100">Generate Deck</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="deckLoadingIndicator" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <div class="ms-3">Generating deck...</div>
+                        </div>
+                        
+                        <div id="deckResultContainer" class="result-container d-none">
+                            <div class="card">
+                                <div class="card-header">Generated Deck</div>
+                                <div class="card-body">
+                                    <pre id="deckResult" class="json-result"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Get Deck Tab -->
+            <div class="tab-pane fade" id="get-deck" role="tabpanel" aria-labelledby="get-deck-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Get Deck by ID</div>
+                            <div class="card-body">
+                                <form id="getDeckForm">
+                                    <div class="mb-3">
+                                        <label for="deckId" class="form-label">Deck ID</label>
+                                        <input type="text" class="form-control" id="deckId" placeholder="Enter deck ID..." required>
+                                        <div class="form-text">Example: "85d778d4-1a5e-424f-a1d5-708b9c979e98"</div>
+                                    </div>
+                                    
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" class="btn btn-primary" id="getDeckRegularBtn">Get Deck (/deck/)</button>
+                                        <button type="button" class="btn btn-info" id="getDeckApiBtn">Get Deck (/api/deck/)</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="getDeckLoadingIndicator" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <div class="ms-3">Loading deck...</div>
+                        </div>
+                        
+                        <div id="getDeckResultContainer" class="result-container d-none">
+                            <div class="card">
+                                <div class="card-header">Deck Details</div>
+                                <div class="card-body">
+                                    <pre id="getDeckResult" class="json-result"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Tab -->
+            <div class="tab-pane fade" id="status" role="tabpanel" aria-labelledby="status-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">API Status Check</div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <p>Check the status of the API and its components:</p>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <button id="checkHealthBtn" class="btn btn-primary">Check API Health</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="statusLoadingIndicator" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <div class="ms-3">Checking status...</div>
+                        </div>
+                        
+                        <div id="statusResultContainer" class="result-container d-none">
+                            <div class="card">
+                                <div class="card-header">API Status Result</div>
+                                <div class="card-body">
+                                    <pre id="statusResult" class="json-result"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Database Tab -->
+            <div class="tab-pane fade" id="database" role="tabpanel" aria-labelledby="database-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Database Operations</div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <button id="dbStatusBtn" class="btn btn-primary">Check Database Status</button>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Configure Database</h5>
+                                    <form id="dbConfigForm">
+                                        <div class="mb-3">
+                                            <label for="dbUrl" class="form-label">Database URL</label>
+                                            <input type="text" class="form-control" id="dbUrl" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="dbKey" class="form-label">API Key</label>
+                                            <input type="password" class="form-control" id="dbKey" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-success">Update Database Config</button>
+                                    </form>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Initialize Database</h5>
+                                    <button id="dbInitBtn" class="btn btn-warning">Initialize Database Schema</button>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Import Data</h5>
+                                    <button id="dbImportBtn" class="btn btn-info">Import Data to Database</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="dbLoadingIndicator" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <div class="ms-3">Processing...</div>
+                        </div>
+                        
+                        <div id="dbResultContainer" class="result-container d-none">
+                            <div class="card">
+                                <div class="card-header">Database Operation Result</div>
+                                <div class="card-body">
+                                    <pre id="dbResult" class="json-result"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Tab -->
+            <div class="tab-pane fade" id="data" role="tabpanel" aria-labelledby="data-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Data Operations</div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <button id="dataStatusBtn" class="btn btn-primary">Check Data Status</button>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Update Data</h5>
+                                    <form id="dataUpdateForm">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="forceUpdate">
+                                            <label class="form-check-label" for="forceUpdate">
+                                                Force Update
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="skipEmbeddings">
+                                            <label class="form-check-label" for="skipEmbeddings">
+                                                Skip Embeddings
+                                            </label>
+                                        </div>
+                                        <button type="submit" class="btn btn-success">Update Data</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="dataLoadingIndicator" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <div class="ms-3">Processing...</div>
+                        </div>
+                        
+                        <div id="dataResultContainer" class="result-container d-none">
+                            <div class="card">
+                                <div class="card-header">Data Operation Result</div>
+                                <div class="card-body">
+                                    <pre id="dataResult" class="json-result"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Price Embeddings Tab -->
+            <div class="tab-pane fade" id="price" role="tabpanel" aria-labelledby="price-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Price Embeddings Operations</div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <button id="priceStatusBtn" class="btn btn-primary">Check Price Embeddings Status</button>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Generate Price Embeddings</h5>
+                                    <button id="priceGenerateBtn" class="btn btn-success">Generate Price Embeddings</button>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Find Similar Price Cards</h5>
+                                    <form id="priceSimilarForm">
+                                        <div class="mb-3">
+                                            <label for="similarCardName" class="form-label">Card Name</label>
+                                            <input type="text" class="form-control" id="similarCardName" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="similarCardLimit" class="form-label">Number of Results</label>
+                                            <input type="number" class="form-control" id="similarCardLimit" value="5" min="1" max="20">
+                                        </div>
+                                        <button type="submit" class="btn btn-info">Find Similar Cards</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="priceLoadingIndicator" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <div class="ms-3">Processing...</div>
+                        </div>
+                        
+                        <div id="priceResultContainer" class="result-container d-none">
+                            <div class="card">
+                                <div class="card-header">Price Operation Result</div>
+                                <div class="card-body">
+                                    <pre id="priceResult" class="json-result"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RAG Endpoints Tab -->
+            <div class="tab-pane fade" id="rag" role="tabpanel" aria-labelledby="rag-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">RAG System Operations</div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <button id="ragStatusBtn" class="btn btn-primary">Check RAG Status</button>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Deck Recommendation</h5>
+                                    <form id="ragDeckRecommendationForm">
+                                        <div class="mb-3">
+                                            <label for="deckStrategy" class="form-label">Deck Strategy</label>
+                                            <textarea class="form-control" id="deckStrategy" rows="2" required></textarea>
+                                        </div>
+                                        <button type="submit" class="btn btn-info">Get Recommendations</button>
+                                    </form>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Search by Keyword</h5>
+                                    <form id="ragKeywordForm">
+                                        <div class="mb-3">
+                                            <label for="keywordQuery" class="form-label">Keyword</label>
+                                            <input type="text" class="form-control" id="keywordQuery" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="keywordLimit" class="form-label">Limit</label>
+                                            <input type="number" class="form-control" id="keywordLimit" value="10" min="1" max="50">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Color Filter</label>
+                                            <div id="keywordColors" class="d-flex gap-2">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="W" id="keywordColorW">
+                                                    <label class="form-check-label" for="keywordColorW">White</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="U" id="keywordColorU">
+                                                    <label class="form-check-label" for="keywordColorU">Blue</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="B" id="keywordColorB">
+                                                    <label class="form-check-label" for="keywordColorB">Black</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="R" id="keywordColorR">
+                                                    <label class="form-check-label" for="keywordColorR">Red</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="G" id="keywordColorG">
+                                                    <label class="form-check-label" for="keywordColorG">Green</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-info">Search</button>
+                                    </form>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Similar Text Search</h5>
+                                    <form id="ragSimilarTextForm">
+                                        <div class="mb-3">
+                                            <label for="textQuery" class="form-label">Text Query</label>
+                                            <textarea class="form-control" id="textQuery" rows="2" required></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="textLimit" class="form-label">Limit</label>
+                                            <input type="number" class="form-control" id="textLimit" value="10" min="1" max="50">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Color Filter</label>
+                                            <div id="textColors" class="d-flex gap-2">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="W" id="textColorW">
+                                                    <label class="form-check-label" for="textColorW">White</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="U" id="textColorU">
+                                                    <label class="form-check-label" for="textColorU">Blue</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="B" id="textColorB">
+                                                    <label class="form-check-label" for="textColorB">Black</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="R" id="textColorR">
+                                                    <label class="form-check-label" for="textColorR">Red</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" value="G" id="textColorG">
+                                                    <label class="form-check-label" for="textColorG">Green</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-info">Find Similar</button>
+                                    </form>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Similar Price Search</h5>
+                                    <form id="ragSimilarPriceForm">
+                                        <div class="mb-3">
+                                            <label for="priceCardName" class="form-label">Card Name</label>
+                                            <input type="text" class="form-control" id="priceCardName" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="priceLimit" class="form-label">Limit</label>
+                                            <input type="number" class="form-control" id="priceLimit" value="10" min="1" max="50">
+                                        </div>
+                                        <button type="submit" class="btn btn-info">Find Similar Price</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div id="ragLoadingIndicator" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <div class="ms-3">Processing...</div>
+                        </div>
+                        
+                        <div id="ragResultContainer" class="result-container d-none">
+                            <div class="card">
+                                <div class="card-header">RAG Operation Result</div>
+                                <div class="card-body">
+                                    <pre id="ragResult" class="json-result"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/deck.js"></script>
+    <script src="js/status.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/price.js"></script>
+    <script src="js/rag.js"></script>
+</body>
+</html>
