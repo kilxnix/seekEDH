@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import hashlib
 import time
+import torch
 from pathlib import Path
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -453,9 +454,11 @@ class MTGDataPipeline:
         try:
             # Load processed cards
             df = pd.read_csv(self.processed_data_path)
-            
-            # Initialize the embedding model
-            model = SentenceTransformer(model_name)
+
+            # Initialize the embedding model with an explicit device
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            logger.info(f"Loading embedding model on {device}")
+            model = SentenceTransformer(model_name, device=device)
             
             # Prepare text for embedding with enhanced processing
             texts = []
