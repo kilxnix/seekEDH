@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+super_venv/
+venv_py311/
+win_venv/
+
+.env
+credentials.json
+
+# Node.js (if applicable)
+node_modules/
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+*.log
+temp/
+cache/
+
+#Images of the cards
+data/images
+# Machine Learning Assets
+models/versions/*/model.safetensors
+models/versions/*/pytorch_model.bin
+*.pkl
+*.h5
+*.onnx
+
+# Data Processing Pipeline
+data/raw/*.json
+data/processed/*.csv
+data/processed/*.npy
+data/processed/*.parquet
+
+# Computational Artifacts  
+embeddings/
+cache/
+temp/
+*.log
+__pycache__/

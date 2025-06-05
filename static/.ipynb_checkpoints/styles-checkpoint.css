@@ -1,0 +1,44 @@
+body {
+    background-color: #f5f5f5;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+.card {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+}
+.card-header {
+    font-weight: bold;
+    background-color: #e9ecef;
+}
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+}
+.card-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+.result-container {
+    margin-top: 1rem;
+}
+.json-result {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.nav-tabs {
+    margin-bottom: 20px;
+}
+.tab-content {
+    padding-top: 20px;
+}
+#apiUrl {
+    width: 100%;
+    margin-bottom: 10px;
+}

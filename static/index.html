@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Image Integration Testing Framework</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
+    <link href="css/image-system.css" rel="stylesheet">
+    <style>
+        /* Enhanced hover and modal styles */
+        .hover-zoom {
+            transition: transform 0.3s ease;
+        }
+        
+        // Modal Functions
+        function showImageModal(cardName, cardData) {
+            const modal = document.getElementById('imageModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            const imageUrl = cardData.image_url || cardData.image_info?.image_url || '';
+            const price = cardData.prices_usd ? `${parseFloat(cardData.prices_usd).toFixed(2)}` : 'N/A';
+            
+            modalContent.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        ${imageUrl ? 
+                            `<img src="${imageUrl}" alt="${cardName}" style="max-width: 100%; height: auto;">` :
+                            `<div class="card-image-placeholder" style="height: 300px;">No Image Available</div>`
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <h4>${cardName}</h4>
+                        <p><strong>Type:</strong> ${cardData.type_line || 'Unknown'}</p>
+                        <p><strong>Price:</strong> ${price}</p>
+                        ${cardData.oracle_text ? `<p><strong>Oracle Text:</strong><br>${cardData.oracle_text}</p>` : ''}
+                        ${cardData.color_identity ? `<p><strong>Colors:</strong> ${Array.isArray(cardData.color_identity) ? cardData.color_identity.join('') : cardData.color_identity}</p>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeImageModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('imageModal');
+            if (event.target === modal) {
+                closeImageModal();
+            }
+        }
+        
+        // Enhanced search functions with better image display
+        
+        async function testEnhancedSearchImages() {
+            imageTester.setStatus('Testing Enhanced Search with images...', 'warning');
+            
+            const query = document.getElementById('enhancedSearchQuery').value || 'flying creatures';
+            
+            try {
+                // Use YOUR existing enhanced search API
+                const response = await fetch(`${getApiUrl()}/api/rag/enhanced-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        include_images: true,
+                        image_size: 'normal',
+                        top_k: 15
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.cards) {
+                    let html = `
+                        <h6>Enhanced Search Results: "${query}"</h6>
+                        <p class="text-muted">Found ${data.cards.length} cards with images - Click any card for larger view</p>
+                        <div class="image-grid">
+                    `;
+                    
+                    data.cards.forEach(card => {
+                        const imageUrl = card.image_url || card.image_info?.image_url || '';
+                        const imageStatus = card.image_info?.image_status || 'unknown';
+                        
+                        html += `
+                            <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
+                                <div class="position-relative">
+                                    ${imageUrl ? 
+                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">
+                                         <span class="card-image-status status-${imageStatus}">${imageStatus}</span>` :
+                                        `<div class="card-image-placeholder">No Image</div>`
+                                    }
+                                </div>
+                                <div class="p-3">
+                                    <h6>${card.name}</h6>
+                                    <p class="small text-muted">${card.type_line || 'Unknown Type'}</p>
+                                    ${card.prices_usd ? `<span class="badge bg-success">${parseFloat(card.prices_usd).toFixed(2)}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    imageTester.displayResults(html);
+                    imageTester.setStatus(`Enhanced search completed - ${data.cards.length} cards with images`, 'success');
+                } else {
+                    imageTester.displayResults(`<div class="alert alert-danger">Enhanced search failed: ${data.error || 'Unknown error'}</div>`);
+                    imageTester.setStatus('Enhanced search failed', 'danger');
+                }
+                
+            } catch (error) {
+                imageTester.displayResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+                imageTester.setStatus('Test failed', 'danger');
+            }
+        }
+        
+        async function testUniversalSearchImages() {
+            imageTester.setStatus('Testing Universal Search with images...', 'warning');
+            
+            const query = document.getElementById('universalSearchQuery').value || 'Find me cheap removal spells under $5';
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/rag/universal-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        include_images: true,
+                        context: {}
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.cards) {
+                    let html = `
+                        <h6>Universal Search Results: "${query}"</h6>
+                        <p class="text-muted">Query Type: <span class="badge bg-primary">${data.query_type}</span> - Click any card for larger view</p>
+                        <div class="row">
+                    `;
+                    
+                    data.cards.forEach(card => {
+                        const imageUrl = card.image_url || card.image_info?.image_url || '';
+                        const synergyScore = card.combined_synergy_score ? (card.combined_synergy_score * 100).toFixed(1) : null;
+                        
+                        html += `
+                            <div class="col-md-6 mb-3">
+                                <div class="card card-result hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
+                                    <div class="card-body">
+                                        <div class="card-result-list">
+                                            ${imageUrl ? 
+                                                `<img src="${imageUrl}" class="card-image-small hover-zoom" alt="${card.name}" loading="lazy">` :
+                                                `<div class="card-image-placeholder" style="width:80px;height:110px;">No Image</div>`
+                                            }
+                                            <div class="flex-grow-1">
+                                                <h6>${card.name}</h6>
+                                                ${synergyScore ? `<span class="synergy-score">Synergy: ${synergyScore}%</span>` : ''}
+                                                <p class="small text-muted">${card.type_line || 'Unknown Type'}</p>
+                                                ${card.oracle_text ? `<p class="card-text small">${card.oracle_text.substring(0, 100)}...</p>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    imageTester.displayResults(html);
+                    imageTester.setStatus(`Universal search completed - ${data.cards.length} cards`, 'success');
+                } else {
+                    imageTester.displayResults(`<div class="alert alert-warning">Universal search: ${data.explanation || 'No results'}</div>`);
+                }
+                
+            } catch (error) {
+                imageTester.displayResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+                imageTester.setStatus('Test failed', 'danger');
+            }
+        }
+        
+        .hover-zoom:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            position: relative;
+        }
+        
+        .hoverable-card {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .hoverable-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+        
+        .image-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+        }
+        
+        .image-modal img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close-modal:hover {
+            color: #000;
+        }
+        
+        .image-grid .image-grid-item {
+            min-height: 300px;
+        }
+        
+        .card-image {
+            height: 200px !important;
+            width: 100%;
+            object-fit: cover;
+        }
+        
+        .card-image-small {
+            width: 80px !important;
+            height: 110px !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Load ALL your JavaScript files -->
+    <script src="js/utils.js"></script>
+    <script src="js/card-search.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/deck.js"></script>
+    <script src="js/enhanced_image_integration.js"></script>
+    <script src="js/enhanced_rag.js"></script>
+    <script src="js/image-system.js"></script>
+    <script src="js/layout-manager.js"></script>
+    <script src="js/performance-tracker.js"></script>
+    <script src="js/price.js"></script>
+    <script src="js/rag.js"></script>
+    <script src="js/rules.js"></script>
+    <script src="js/status.js"></script>
+    <script src="js/synergy.js"></script>
+    <script src="js/visual-search.js"></script>
+
+    <div class="container-fluid">
+        <h1 class="text-center mb-4">MTG Image Integration Testing</h1>
+        <p class="text-center text-muted">Test that search results return and display images correctly</p>
+        
+        <!-- API URL -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <label for="apiUrl" class="form-label">API URL</label>
+                        <input type="text" class="form-control" id="apiUrl" value="http://localhost:5000">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button id="testAllImageIntegration" class="btn btn-primary w-100">
+                            Test All Image Integration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Controls -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Image Integration Tests</h6>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Enhanced Search with Images -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Enhanced Search + Images</h6>
+                            <input type="text" class="form-control mb-2" id="enhancedSearchQuery" value="flying creatures" placeholder="Search query...">
+                            <button class="btn btn-success w-100 mb-2" onclick="testEnhancedSearchImages()">
+                                Test Enhanced Search with Images
+                            </button>
+                            <button class="btn btn-outline-success w-100" onclick="testEnhancedSearchImageFallbacks()">
+                                Test Image Fallbacks
+                            </button>
+                        </div>
+
+                        <!-- Universal Search with Images -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Universal Search + Images</h6>
+                            <textarea class="form-control mb-2" id="universalSearchQuery" rows="2" placeholder="Natural language query...">Find me cheap removal spells under $5</textarea>
+                            <button class="btn btn-info w-100 mb-2" onclick="testUniversalSearchImages()">
+                                Test Universal Search with Images
+                            </button>
+                        </div>
+
+                        <!-- Card Synergy with Images -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Card Synergy + Images</h6>
+                            <input type="text" class="form-control mb-2" id="synergyCards" value="Sol Ring, Mana Vault" placeholder="Seed cards...">
+                            <button class="btn btn-warning w-100 mb-2" onclick="testSynergySearchImages()">
+                                Test Synergy with Images
+                            </button>
+                        </div>
+
+                        <!-- Visual Search Results -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Visual Search Results</h6>
+                            <input type="text" class="form-control mb-2" id="visualSearchCard" value="Lightning Bolt" placeholder="Reference card...">
+                            <button class="btn btn-secondary w-100 mb-2" onclick="testVisualSimilarityImages()">
+                                Test Visual Similarity Results
+                            </button>
+                            <textarea class="form-control mb-2" id="visualDescQuery" rows="2" placeholder="Visual description...">dark fantasy art with creatures</textarea>
+                            <button class="btn btn-outline-secondary w-100" onclick="testVisualDescriptionImages()">
+                                Test Description Search Results
+                            </button>
+                        </div>
+
+                        <!-- Performance Tests -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Performance Tests</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label small">Cards</label>
+                                    <input type="number" class="form-control form-control-sm" id="perfCardCount" value="25" min="5" max="50">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Size</label>
+                                    <select class="form-select form-select-sm" id="perfImageSize">
+                                        <option value="small">Small</option>
+                                        <option value="normal" selected>Normal</option>
+                                        <option value="large">Large</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-danger w-100 mt-2 mb-2" onclick="testImageLoadPerformance()">
+                                Test Image Load Performance
+                            </button>
+                            <button class="btn btn-outline-danger w-100" onclick="testLazyLoadingPerformance()">
+                                Test Lazy Loading Performance
+                            </button>
+                        </div>
+
+                        <!-- Layout Tests -->
+                        <div class="mb-3">
+                            <h6 class="text-primary">Layout Tests</h6>
+                            <button class="btn btn-dark w-100 mb-2" onclick="testLayoutSwitchingWithImages()">
+                                Test Layout Switching
+                            </button>
+                            <button class="btn btn-outline-dark w-100" onclick="testResponsiveImages()">
+                                Test Responsive Images
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Column -->
+            <div class="col-md-9">
+                <!-- Performance Metrics -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6><i class="bi bi-speedometer2"></i> Live Image Performance</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="metric-card">
+                                    <div class="metric-value" id="liveImageCount">0</div>
+                                    <div class="text-muted small">Images Loaded</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="metric-card">
+                                    <div class="metric-value" id="liveLoadTime">--</div>
+                                    <div class="text-muted small">Avg Load Time (ms)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="metric-card">
+                                    <div class="metric-value" id="liveSuccessRate">--</div>
+                                    <div class="text-muted small">Success Rate (%)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="metric-card">
+                                    <div class="metric-value" id="liveFailedImages">0</div>
+                                    <div class="text-muted small">Failed Images</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Results -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6><i class="bi bi-images"></i> Search Results with Images</h6>
+                        <div>
+                            <span id="testStatus" class="badge bg-secondary">Ready</span>
+                            <button id="clearResults" class="btn btn-sm btn-outline-secondary ms-2">Clear</button>
+                            <button id="exportImageMetrics" class="btn btn-sm btn-outline-primary ms-1">Export Metrics</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="imageTestResults" style="min-height: 600px; max-height: 800px; overflow-y: auto;">
+                            <div class="text-center text-muted">
+                                <i class="bi bi-images" style="font-size: 4rem;"></i>
+                                <h5 class="mt-3">Test Image Integration</h5>
+                                <p>Run tests to see search results with images</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="image-modal">
+        <div class="image-modal-content">
+            <span class="close-modal" onclick="closeImageModal()">&times;</span>
+            <div id="modalContent">
+                <!-- Modal content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Image Integration Testing Framework
+        class ImageIntegrationTester {
+            constructor() {
+                this.imageMetrics = {
+                    totalImages: 0,
+                    loadedImages: 0,
+                    failedImages: 0,
+                    loadTimes: [],
+                    startTime: null
+                };
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.startMetricsTracking();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('testAllImageIntegration').addEventListener('click', () => this.testAllImageIntegration());
+                document.getElementById('clearResults').addEventListener('click', () => this.clearResults());
+                document.getElementById('exportImageMetrics').addEventListener('click', () => this.exportMetrics());
+            }
+            
+            startMetricsTracking() {
+                // Track image loads globally
+                setInterval(() => {
+                    this.updateLiveMetrics();
+                }, 1000);
+            }
+            
+            updateLiveMetrics() {
+                document.getElementById('liveImageCount').textContent = this.imageMetrics.loadedImages;
+                document.getElementById('liveFailedImages').textContent = this.imageMetrics.failedImages;
+                
+                const avgLoadTime = this.imageMetrics.loadTimes.length > 0 
+                    ? Math.round(this.imageMetrics.loadTimes.reduce((a, b) => a + b, 0) / this.imageMetrics.loadTimes.length)
+                    : '--';
+                document.getElementById('liveLoadTime').textContent = avgLoadTime;
+                
+                const successRate = this.imageMetrics.totalImages > 0 
+                    ? ((this.imageMetrics.loadedImages / this.imageMetrics.totalImages) * 100).toFixed(1)
+                    : '--';
+                document.getElementById('liveSuccessRate').textContent = successRate;
+            }
+            
+            setStatus(message, type = 'secondary') {
+                document.getElementById('testStatus').textContent = message;
+                document.getElementById('testStatus').className = `badge bg-${type}`;
+            }
+            
+            displayResults(html) {
+                document.getElementById('imageTestResults').innerHTML = html;
+                this.setupImageTracking();
+            }
+            
+            setupImageTracking() {
+                // Track all images in the results
+                const images = document.querySelectorAll('#imageTestResults img');
+                images.forEach(img => {
+                    if (!img.dataset.tracked) {
+                        img.dataset.tracked = 'true';
+                        this.imageMetrics.totalImages++;
+                        
+                        const loadStart = Date.now();
+                        
+                        img.addEventListener('load', () => {
+                            this.imageMetrics.loadedImages++;
+                            this.imageMetrics.loadTimes.push(Date.now() - loadStart);
+                        });
+                        
+                        img.addEventListener('error', () => {
+                            this.imageMetrics.failedImages++;
+                        });
+                    }
+                });
+            }
+            
+            async testAllImageIntegration() {
+                this.setStatus('Running all image integration tests...', 'warning');
+                this.clearMetrics();
+                
+                await this.testEnhancedSearchImages();
+                await this.delay(2000);
+                await this.testUniversalSearchImages();
+                await this.delay(2000);
+                await this.testSynergySearchImages();
+                await this.delay(2000);
+                await this.testVisualSimilarityImages();
+                
+                this.setStatus('All image integration tests completed', 'success');
+            }
+            
+            clearMetrics() {
+                this.imageMetrics = {
+                    totalImages: 0,
+                    loadedImages: 0,
+                    failedImages: 0,
+                    loadTimes: [],
+                    startTime: Date.now()
+                };
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            clearResults() {
+                document.getElementById('imageTestResults').innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="bi bi-images" style="font-size: 4rem;"></i>
+                        <h5 class="mt-3">Test Image Integration</h5>
+                        <p>Run tests to see search results with images</p>
+                    </div>
+                `;
+                this.clearMetrics();
+                this.setStatus('Ready');
+            }
+            
+            exportMetrics() {
+                const data = {
+                    timestamp: new Date().toISOString(),
+                    metrics: this.imageMetrics,
+                    performance: {
+                        avgLoadTime: this.imageMetrics.loadTimes.reduce((a, b) => a + b, 0) / this.imageMetrics.loadTimes.length,
+                        successRate: (this.imageMetrics.loadedImages / this.imageMetrics.totalImages) * 100,
+                        totalTestTime: Date.now() - this.imageMetrics.startTime
+                    }
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `image-integration-metrics-${Date.now()}.json`;
+                a.click();
+                
+                URL.revokeObjectURL(url);
+            }
+        }
+        
+        // Initialize tester
+        let imageTester;
+        document.addEventListener('DOMContentLoaded', () => {
+            imageTester = new ImageIntegrationTester();
+        });
+        
+        // Test Functions - These use YOUR existing search functions and test that images are returned
+        
+        async function testEnhancedSearchImages() {
+            imageTester.setStatus('Testing Enhanced Search with images...', 'warning');
+            
+            const query = document.getElementById('enhancedSearchQuery').value || 'flying creatures';
+            
+            try {
+                // Use YOUR existing enhanced search API
+                const response = await fetch(`${getApiUrl()}/api/rag/enhanced-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        include_images: true,
+                        image_size: 'normal',
+                        top_k: 15
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.cards) {
+                    let html = `
+                        <h6>Enhanced Search Results: "${query}"</h6>
+                        <p class="text-muted">Found ${data.cards.length} cards with images</p>
+                        <div class="image-grid">
+                    `;
+                    
+                    data.cards.forEach(card => {
+                        const imageUrl = card.image_url || card.image_info?.image_url || '';
+                        const imageStatus = card.image_info?.image_status || 'unknown';
+                        
+                        html += `
+                            <div class="image-grid-item">
+                                <div class="position-relative">
+                                    ${imageUrl ? 
+                                        `<img src="${imageUrl}" class="card-image" alt="${card.name}" loading="lazy">
+                                         <span class="card-image-status status-${imageStatus}">${imageStatus}</span>` :
+                                        `<div class="card-image-placeholder">No Image</div>`
+                                    }
+                                </div>
+                                <div class="p-3">
+                                    <h6>${card.name}</h6>
+                                    <p class="small text-muted">${card.type_line || 'Unknown Type'}</p>
+                                    ${card.prices_usd ? `<span class="badge bg-success">$${parseFloat(card.prices_usd).toFixed(2)}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    imageTester.displayResults(html);
+                    imageTester.setStatus(`Enhanced search completed - ${data.cards.length} cards with images`, 'success');
+                } else {
+                    imageTester.displayResults(`<div class="alert alert-danger">Enhanced search failed: ${data.error || 'Unknown error'}</div>`);
+                    imageTester.setStatus('Enhanced search failed', 'danger');
+                }
+                
+            } catch (error) {
+                imageTester.displayResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+                imageTester.setStatus('Test failed', 'danger');
+            }
+        }
+        
+        async function testUniversalSearchImages() {
+            imageTester.setStatus('Testing Universal Search with images...', 'warning');
+            
+            const query = document.getElementById('universalSearchQuery').value || 'Find me cheap removal spells under $5';
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/rag/universal-search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        include_images: true,
+                        context: {}
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.cards) {
+                    let html = `
+                        <h6>Universal Search Results: "${query}"</h6>
+                        <p class="text-muted">Query Type: <span class="badge bg-primary">${data.query_type}</span></p>
+                        <div class="row">
+                    `;
+                    
+                    data.cards.forEach(card => {
+                        const imageUrl = card.image_url || card.image_info?.image_url || '';
+                        const synergyScore = card.combined_synergy_score ? (card.combined_synergy_score * 100).toFixed(1) : null;
+                        
+                        html += `
+                            <div class="col-md-6 mb-3">
+                                <div class="card card-result">
+                                    <div class="card-body">
+                                        <div class="card-result-list">
+                                            ${imageUrl ? 
+                                                `<img src="${imageUrl}" class="card-image-small" alt="${card.name}" loading="lazy">` :
+                                                `<div class="card-image-placeholder" style="width:60px;height:80px;">No Image</div>`
+                                            }
+                                            <div class="flex-grow-1">
+                                                <h6>${card.name}</h6>
+                                                ${synergyScore ? `<span class="synergy-score">Synergy: ${synergyScore}%</span>` : ''}
+                                                <p class="small text-muted">${card.type_line || 'Unknown Type'}</p>
+                                                ${card.oracle_text ? `<p class="card-text small">${card.oracle_text.substring(0, 100)}...</p>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    imageTester.displayResults(html);
+                    imageTester.setStatus(`Universal search completed - ${data.cards.length} cards`, 'success');
+                } else {
+                    imageTester.displayResults(`<div class="alert alert-warning">Universal search: ${data.explanation || 'No results'}</div>`);
+                }
+                
+            } catch (error) {
+                imageTester.displayResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+                imageTester.setStatus('Test failed', 'danger');
+            }
+        }
+        
+        async function testSynergySearchImages() {
+            imageTester.setStatus('Testing Synergy Search with images...', 'warning');
+            
+            const seedCards = document.getElementById('synergyCards').value || 'Sol Ring, Mana Vault';
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/rag/card-synergies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seed_cards: seedCards.split(',').map(c => c.trim()),
+                        include_images: true,
+                        top_k: 12
+                    })
+                });
+                
+                const data = await response.json();
+                
+                console.log('Synergy API Response:', data); // Debug log
+                
+                if (data.success && data.synergistic_cards) {
+                    let html = `
+                        <h6>Synergy Search Results</h6>
+                        <p class="text-muted">Seed Cards: <strong>${data.seed_cards ? data.seed_cards.join(', ') : seedCards}</strong></p>
+                        <div class="image-grid">
+                    `;
+                    
+                    data.synergistic_cards.forEach(result => {
+                        // Handle different possible response structures
+                        const card = result.card || result; // Sometimes the card IS the result
+                        
+                        if (!card || !card.name) {
+                            console.warn('Invalid card object:', result);
+                            return; // Skip invalid cards
+                        }
+                        
+                        const imageUrl = card.image_url || card.image_info?.image_url || '';
+                        const synergyScore = result.synergy_score ? (result.synergy_score * 100).toFixed(1) : 'N/A';
+                        
+                        html += `
+                            <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
+                                <div class="position-relative">
+                                    ${imageUrl ? 
+                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">` :
+                                        `<div class="card-image-placeholder">No Image</div>`
+                                    }
+                                    <span class="badge bg-success position-absolute top-0 end-0 m-2">${synergyScore}%</span>
+                                </div>
+                                <div class="p-3">
+                                    <h6>${card.name}</h6>
+                                    <p class="small text-muted">${card.type_line || 'Unknown Type'}</p>
+                                    <p class="small">${result.synergy_reason || 'No reason provided'}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    imageTester.displayResults(html);
+                    imageTester.setStatus(`Synergy search completed - ${data.synergistic_cards.length} cards`, 'success');
+                } else {
+                    imageTester.displayResults(`<div class="alert alert-danger">Synergy search failed: ${data.error || 'Unknown error'}</div>`);
+                }
+                
+            } catch (error) {
+                console.error('Synergy search error:', error);
+                imageTester.displayResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+                imageTester.setStatus('Test failed', 'danger');
+            }
+        }
+        
+        async function testVisualSimilarityImages() {
+            imageTester.setStatus('Testing Visual Similarity with images...', 'warning');
+            
+            const cardName = document.getElementById('visualSearchCard').value || 'Lightning Bolt';
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/image-embeddings/visual-similarity?card=${encodeURIComponent(cardName)}&top_k=10&include_images=true`);
+                const data = await response.json();
+                
+                if (data.success && data.visually_similar_cards) {
+                    let html = `
+                        <h6>Visual Similarity Results</h6>
+                        <p class="text-muted">Similar to: <strong>${cardName}</strong> - Click any card for larger view</p>
+                        <div class="image-grid">
+                    `;
+                    
+                    data.visually_similar_cards.forEach(card => {
+                        const imageUrl = card.image_url || card.image_info?.image_url || '';
+                        const similarity = card.similarity_score ? (card.similarity_score * 100).toFixed(0) : '85';
+                        
+                        html += `
+                            <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
+                                <div class="position-relative">
+                                    ${imageUrl ? 
+                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">` :
+                                        `<div class="card-image-placeholder">No Image</div>`
+                                    }
+                                    <span class="badge bg-info position-absolute top-0 end-0 m-2">${similarity}%</span>
+                                </div>
+                                <div class="p-3">
+                                    <h6>${card.name}</h6>
+                                    <p class="small text-muted">${card.type_line || 'Unknown Type'}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    imageTester.displayResults(html);
+                    imageTester.setStatus(`Visual similarity completed - ${data.visually_similar_cards.length} cards`, 'success');
+                } else {
+                    imageTester.displayResults(`<div class="alert alert-danger">Visual similarity failed: ${data.error || 'Unknown error'}</div>`);
+                }
+                
+            } catch (error) {
+                imageTester.displayResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+                imageTester.setStatus('Test failed', 'danger');
+            }
+        }
+        
+        async function testVisualDescriptionImages() {
+            imageTester.setStatus('Testing Visual Description Search with images...', 'warning');
+            
+            const description = document.getElementById('visualDescQuery').value || 'dark fantasy art with creatures';
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/image-embeddings/search-by-description`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: description,
+                        top_k: 10,
+                        include_images: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.matching_cards) {
+                    let html = `
+                        <h6>Visual Description Search Results</h6>
+                        <p class="text-muted">Description: <strong>"${description}"</strong> - Click any card for larger view</p>
+                        <div class="image-grid">
+                    `;
+                    
+                    data.matching_cards.forEach(card => {
+                        const imageUrl = card.image_url || card.image_info?.image_url || '';
+                        
+                        html += `
+                            <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
+                                <div class="position-relative">
+                                    ${imageUrl ? 
+                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">` :
+                                        `<div class="card-image-placeholder">No Image</div>`
+                                    }
+                                </div>
+                                <div class="p-3">
+                                    <h6>${card.name}</h6>
+                                    <p class="small text-muted">${card.type_line || 'Unknown Type'}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    imageTester.displayResults(html);
+                    imageTester.setStatus(`Description search completed - ${data.matching_cards.length} cards`, 'success');
+                } else {
+                    imageTester.displayResults(`<div class="alert alert-danger">Description search failed: ${data.error || 'Unknown error'}</div>`);
+                }
+                
+            } catch (error) {
+                imageTester.displayResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+                imageTester.setStatus('Test failed', 'danger');
+            }
+        }
+        
+        async function testEnhancedSearchImageFallbacks() {
+            imageTester.setStatus('Testing image fallbacks...', 'warning');
+            
+            // Test with cards that might have fallback scenarios
+            const response = await fetch(`${getApiUrl()}/api/rag/enhanced-search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: 'obscure cards',
+                    include_images: true,
+                    top_k: 10
+                })
+            });
+            
+            const data = await response.json();
+            
+            let html = `
+                <h6>Image Fallback Test</h6>
+                <p class="text-muted">Testing fallback behavior for images</p>
+            `;
+            
+            if (data.success && data.cards) {
+                data.cards.forEach(card => {
+                    const imageStatus = card.image_info?.image_status || 'unknown';
+                    const imageUrl = card.image_url || '';
+                    
+                    html += `
+                        <div class="alert alert-${imageUrl ? 'success' : 'warning'}">
+                            <strong>${card.name}:</strong> 
+                            Image Status: <span class="badge bg-secondary">${imageStatus}</span>
+                            ${imageUrl ? ` - Has image URL` : ` - No image URL`}
+                        </div>
+                    `;
+                });
+            }
+            
+            imageTester.displayResults(html);
+            imageTester.setStatus('Fallback test completed', 'info');
+        }
+        
+        async function testImageLoadPerformance() {
+            imageTester.setStatus('Testing image load performance...', 'warning');
+            imageTester.clearMetrics();
+            
+            const cardCount = parseInt(document.getElementById('perfCardCount').value) || 25;
+            const imageSize = document.getElementById('perfImageSize').value || 'normal';
+            
+            const response = await fetch(`${getApiUrl()}/api/rag/enhanced-search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: 'creatures',
+                    include_images: true,
+                    image_size: imageSize,
+                    top_k: cardCount
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.cards) {
+                let html = `
+                    <h6>Performance Test: ${cardCount} ${imageSize} images</h6>
+                    <p class="text-muted">Loading ${data.cards.length} images...</p>
+                    <div class="image-grid">
+                `;
+                
+                data.cards.forEach(card => {
+                    const imageUrl = card.image_url || '';
+                    html += `
+                        <div class="image-grid-item">
+                            ${imageUrl ? 
+                                `<img src="${imageUrl}" class="card-image" alt="${card.name}" loading="lazy">` :
+                                `<div class="card-image-placeholder">No Image</div>`
+                            }
+                            <div class="p-2">
+                                <h6 class="small">${card.name}</h6>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                imageTester.displayResults(html);
+                imageTester.setStatus(`Performance test running - ${data.cards.length} images`, 'info');
+            }
+        }
+        
+        async function testLazyLoadingPerformance() {
+            imageTester.setStatus('Testing lazy loading...', 'warning');
+            
+            // Test lazy loading by creating a lot of images
+            await testImageLoadPerformance();
+            
+            // Add info about lazy loading
+            const currentResults = document.getElementById('imageTestResults').innerHTML;
+            const lazyInfo = `
+                <div class="alert alert-info">
+                    <h6>Lazy Loading Test</h6>
+                    <p>Images should load as you scroll. Check browser dev tools Network tab to verify.</p>
+                    <p><strong>Expected behavior:</strong> Images load only when they come into viewport</p>
+                </div>
+            `;
+            
+            imageTester.displayResults(lazyInfo + currentResults);
+            imageTester.setStatus('Lazy loading test active', 'info');
+        }
+        
+        async function testLayoutSwitchingWithImages() {
+            // First load some images
+            await testEnhancedSearchImages();
+            
+            // Then test layout switching
+            imageTester.setStatus('Testing layout switching with images...', 'warning');
+            
+            if (window.layoutManager) {
+                const layouts = ['grid', 'list', 'compact'];
+                let currentIndex = 0;
+                
+                const switchLayout = () => {
+                    const layout = layouts[currentIndex];
+                    window.layoutManager.switchLayout(layout);
+                    imageTester.setStatus(`Switched to ${layout} layout`, 'info');
+                    
+                    currentIndex = (currentIndex + 1) % layouts.length;
+                    
+                    if (currentIndex !== 0) {
+                        setTimeout(switchLayout, 2000);
+                    } else {
+                        imageTester.setStatus('Layout switching test completed', 'success');
+                    }
+                };
+                
+                switchLayout();
+            } else {
+                imageTester.setStatus('Layout manager not available', 'danger');
+            }
+        }
+        
+        async function testResponsiveImages() {
+            imageTester.setStatus('Testing responsive images...', 'warning');
+            
+            const html = `
+                <div class="alert alert-info">
+                    <h6>Responsive Image Test</h6>
+                    <p>Resize your browser window to test responsive behavior:</p>
+                    <ul>
+                        <li><strong>Desktop (>768px):</strong> Grid layout with normal-sized images</li>
+                        <li><strong>Tablet (576-768px):</strong> Smaller grid with adjusted images</li>
+                        <li><strong>Mobile (<576px):</strong> Single column with small images</li>
+                    </ul>
+                    <p>Current window width: <span id="currentWidth">${window.innerWidth}px</span></p>
+                </div>
+            `;
+            
+            imageTester.displayResults(html);
+            
+            // Add window resize listener
+            const updateWidth = () => {
+                const widthSpan = document.getElementById('currentWidth');
+                if (widthSpan) {
+                    widthSpan.textContent = window.innerWidth + 'px';
+                }
+            };
+            
+            window.addEventListener('resize', updateWidth);
+            imageTester.setStatus('Responsive test active - resize window', 'info');
+        }
+        
+    </script>
+</body>
+</html>

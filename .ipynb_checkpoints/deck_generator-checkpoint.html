@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Deck Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .card {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+        .card-header {
+            font-weight: bold;
+            background-color: #e9ecef;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+        }
+        .card-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result-container {
+            margin-top: 2rem;
+        }
+        .deck-info {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="text-center">MTG Commander Deck Generator</h1>
+                <p class="text-center text-muted">Generate custom Magic: The Gathering Commander decks using our AI-powered system</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Deck Generation Settings</div>
+                    <div class="card-body">
+                        <form id="deckForm">
+                            <div class="mb-3">
+                                <label for="strategy" class="form-label">Deck Strategy</label>
+                                <textarea class="form-control" id="strategy" rows="3" placeholder="Describe your deck strategy in detail..." required></textarea>
+                                <div class="form-text">Example: "A graveyard-based deck that sacrifices creatures for value and reanimates them"</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commander" class="form-label">Commander (Optional)</label>
+                                <input type="text" class="form-control" id="commander" placeholder="Enter commander name...">
+                                <div class="form-text">Leave blank to have the system suggest a commander</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="bracket" class="form-label">Power Level Bracket</label>
+                                <select class="form-select" id="bracket">
+                                    <option value="1">1 - Exhibition (Casual, Theme-focused)</option>
+                                    <option value="2" selected>2 - Core (Balanced, Precon-level)</option>
+                                    <option value="3">3 - Upgraded (Tuned, Higher Power)</option>
+                                    <option value="4">4 - Optimized (High-powered)</option>
+                                    <option value="5">5 - cEDH (Competitive)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="maxPrice" class="form-label">Maximum Price (Optional)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="maxPrice" placeholder="e.g., 200">
+                                </div>
+                                <div class="form-text">Leave blank for no price limit</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="landQuality" class="form-label">Land Quality</label>
+                                <select class="form-select" id="landQuality">
+                                    <option value="competitive">Competitive (Optimal, Higher Cost)</option>
+                                    <option value="balanced" selected>Balanced (Mix of Value and Budget)</option>
+                                    <option value="budget">Budget (Affordable Options)</option>
+                                </select>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">Generate Deck</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div id="loadingIndicator" class="loading d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="ms-3">Generating deck... this may take a minute</div>
+                </div>
+                
+                <div id="resultContainer" class="result-container d-none">
+                    <div class="card">
+                        <div class="card-header">Generated Deck</div>
+                        <div class="card-body">
+                            <div id="deckInfo" class="deck-info">
+                                <!-- Deck info will be inserted here -->
+                            </div>
+                            
+                            <div class="accordion" id="deckAccordion">
+                                <!-- Accordion items will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('deckForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const strategy = document.getElementById('strategy').value;
+            const commander = document.getElementById('commander').value;
+            const bracket = document.getElementById('bracket').value;
+            const maxPrice = document.getElementById('maxPrice').value;
+            const landQuality = document.getElementById('landQuality').value;
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').classList.remove('d-none');
+            document.getElementById('resultContainer').classList.add('d-none');
+            
+            // Prepare request data
+            const requestData = {
+                strategy: strategy,
+                bracket: parseInt(bracket)
+            };
+            
+            if (commander) {
+                requestData.commander = commander;
+            }
+            
+            if (maxPrice) {
+                requestData.max_price = parseFloat(maxPrice);
+            }
+            
+            requestData.land_quality = landQuality;
+            
+            // Send API request
+            fetch('/api/generate-deck', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading indicator
+                document.getElementById('loadingIndicator').classList.add('d-none');
+                
+                if (data.success) {
+                    displayDeck(data.deck);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('loadingIndicator').classList.add('d-none');
+                alert('Error generating deck: ' + error);
+            });
+        });
+        
+        function displayDeck(deck) {
+            // Show result container
+            document.getElementById('resultContainer').classList.remove('d-none');
+            
+            // Display deck info
+            const deckInfo = document.getElementById('deckInfo');
+            deckInfo.innerHTML = `
+                <h4>${deck.commander || 'Generated Deck'}</h4>
+                <p><strong>Strategy:</strong> ${deck.strategy}</p>
+                <p><strong>Power Level:</strong> ${deck.bracket} - ${deck.bracket_name}</p>
+                <p><strong>Total Price:</strong> $${deck.total_price.toFixed(2)}</p>
+                <p><strong>Total Cards:</strong> ${deck.card_count}</p>
+            `;
+            
+            // Display deck contents in accordion
+            const deckAccordion = document.getElementById('deckAccordion');
+            deckAccordion.innerHTML = '';
+            
+            // Create accordion items for each card type
+            const cardTypes = {
+                'Commander': deck.deck_list.Commander || [],
+                'Creatures': deck.deck_list.Creatures || [],
+                'Artifacts': deck.deck_list.Artifacts || [],
+                'Enchantments': deck.deck_list.Enchantments || [],
+                'Instants': deck.deck_list.Instants || [],
+                'Sorceries': deck.deck_list.Sorceries || [],
+                'Planeswalkers': deck.deck_list.Planeswalkers || [],
+                'Lands': deck.deck_list.Lands || []
+            };
+            
+            let index = 0;
+            for (const [type, cards] of Object.entries(cardTypes)) {
+                if (cards.length === 0) continue;
+                
+                const headingId = `heading${index}`;
+                const collapseId = `collapse${index}`;
+                
+                const accordionItem = document.createElement('div');
+                accordionItem.className = 'accordion-item';
+                accordionItem.innerHTML = `
+                    <h2 class="accordion-header" id="${headingId}">
+                        <button class="accordion-button ${index > 0 ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${index === 0}" aria-controls="${collapseId}">
+                            ${type} (${cards.length})
+                        </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="${headingId}" data-bs-parent="#deckAccordion">
+                        <div class="accordion-body card-list">
+                            <ol class="list-group list-group-numbered">
+                                ${cards.map(card => `<li class="list-group-item">${card}</li>`).join('')}
+                            </ol>
+                        </div>
+                    </div>
+                `;
+                
+                deckAccordion.appendChild(accordionItem);
+                index++;
+            }
+        }
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
