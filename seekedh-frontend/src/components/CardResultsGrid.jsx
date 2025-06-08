@@ -31,6 +31,11 @@ export default function CardResultsGrid({ results, loading }) {
             />
           </div>
           <div className="font-bold text-xl">{card.name}</div>
+          {card.combined_synergy_score !== undefined && (
+            <div className="text-xs text-blue-400">
+              Synergy: {(card.combined_synergy_score * 100).toFixed(1)}%
+            </div>
+          )}
           <div className="text-sm text-gray-400">{card.type_line}</div>
           <div className="mt-1 text-gray-300">{card.oracle_text}</div>
           <div className="mt-2 text-xs text-gray-500">Set: {card.set_name || "—"}</div>
