@@ -26,7 +26,7 @@ export default function CardResultsGrid({ results, loading }) {
             <img
               src={card.image_url || "/default_card.png"}
               alt={card.name}
-              className="w-full h-64 object-contain rounded-lg"
+              className="w-full max-h-96 object-contain rounded-lg"
               loading="lazy"
             />
           </div>

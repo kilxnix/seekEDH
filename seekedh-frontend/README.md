@@ -1,6 +1,17 @@
-# React + Vite
+# seekedh Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This React app provides a simple interface for the **enhanced card search** API.
+It allows you to query the backend and filter results by card colors. Images are
+displayed using `object-contain` so artwork is never cropped.
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+The API base URL can be customised with the `VITE_API_URL` environment variable.
 
 Currently, two official plugins are available:
 
