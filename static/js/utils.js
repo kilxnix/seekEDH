@@ -13,7 +13,35 @@ function toggleLoading(section, isLoading) {
 
 // Helper function to display JSON results
 function displayResult(section, data) {
-    document.getElementById(`${section}Result`).textContent = JSON.stringify(data, null, 2);
+    const pre = document.getElementById(`${section}Result`);
+    pre.textContent = JSON.stringify(data, null, 2);
+
+    // Image rendering support
+    const containerId = `${section}Images`;
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.className = 'image-grid mt-3';
+        pre.parentNode.appendChild(container);
+    }
+    container.innerHTML = '';
+
+    let cards = [];
+    if (Array.isArray(data.cards)) {
+        cards = data.cards;
+    } else if (Array.isArray(data.visually_similar_cards)) {
+        cards = data.visually_similar_cards.map(c => c.card || c);
+    } else if (Array.isArray(data.matching_cards)) {
+        cards = data.matching_cards.map(c => c.card || c);
+    } else if (Array.isArray(data.synergistic_cards)) {
+        cards = data.synergistic_cards.map(c => c.card || c);
+    }
+
+    if (cards.length > 0 && typeof renderMTGCards === 'function') {
+        renderMTGCards(cards, `#${containerId}`, { template: 'grid' });
+    }
+
     toggleLoading(section, false);
 }
 // Helper function for allowing dobule slash (//)
