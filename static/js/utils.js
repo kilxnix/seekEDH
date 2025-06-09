@@ -44,29 +44,6 @@ function displayResult(section, data) {
 
     toggleLoading(section, false);
 }
-// Helper function for allowing dobule slash (//)
-function makeApiRequest(url, method = 'GET', data = null) {
-    // Fix double slashes in URL (excluding protocol slashes)
-    url = url.replace(/([^:]\/)\/+/g, "$1");
-    
-    const options = {
-        method: method,
-        headers: {}
-    };
-    
-    if (data) {
-        options.headers['Content-Type'] = 'application/json';
-        options.body = JSON.stringify(data);
-    }
-    
-    try {
-        return fetch(url, options)
-            .then(response => response.json());
-    } catch (error) {
-        console.error('API request failed:', error);
-        throw error;
-    }
-}
 // Make API request with error handling
 async function makeApiRequest(url, method = 'GET', data = null) {
     const options = {
