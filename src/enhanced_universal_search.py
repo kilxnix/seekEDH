@@ -572,7 +572,7 @@ class EnhancedUniversalSearchHandler:
             return {
                 'success': True,
                 'query_type': 'category_search',
-                'cards': filtered_cards[:20],  # Return top 20
+                'cards': filtered_cards[:40],  # Return top 40
                 'constraints_applied': constraints,
                 'explanation': self._generate_category_search_explanation(constraints, len(filtered_cards))
             }
@@ -719,7 +719,7 @@ class EnhancedUniversalSearchHandler:
         # Sort by combined score and return top results
         scored_cards.sort(key=lambda x: x.get('combined_synergy_score', 0), reverse=True)
 
-        return scored_cards[:20]  # Return top 20 synergistic cards
+        return scored_cards[:40]  # Return top 40 synergistic cards
 
     def _find_text_similar_cards(self, seed_cards: List[Dict], query_context: str) -> List[Dict]:
         """FIXED: Find cards with similar text to seed cards"""
@@ -1056,10 +1056,10 @@ class EnhancedUniversalSearchHandler:
                         if card and card.get('id') not in seen_ids:
                             seen_ids.add(card['id'])
                             unique_cards.append(card)
-                    matching_cards = unique_cards[:15]
+                    matching_cards = unique_cards[:30]
                 else:
                     # Last resort: search for "artifact"
-                    matching_cards = self.rag.search_cards_by_keyword("artifact", top_k=15)
+                    matching_cards = self.rag.search_cards_by_keyword("artifact", top_k=30)
 
             # Apply context filters if provided
             if context and matching_cards:
@@ -1081,8 +1081,8 @@ class EnhancedUniversalSearchHandler:
                 'success': True,
                 'query_type': 'general_search',
                 'original_query': query_text,
-                'cards': matching_cards[:15],
-                'explanation': f"Found {len(matching_cards[:15])} cards matching your search."
+                'cards': matching_cards[:30],
+                'explanation': f"Found {len(matching_cards[:30])} cards matching your search."
             }
 
         except Exception as e:
