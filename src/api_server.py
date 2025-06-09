@@ -3,6 +3,7 @@ import os
 import logging
 import json
 from flask import Flask, request, jsonify, send_file, redirect
+from io import StringIO
 from flask_cors import CORS
 
 from src.config import API_HOST, API_PORT
@@ -185,19 +186,40 @@ def import_to_database():
     data = request.json or {}
     include_price_embeddings = data.get('include_price_embeddings', False)
     upload_images_to_storage = data.get('upload_images_to_storage', True)
-    
-    if upload_images_to_storage:
-        result = db_interface.import_cards_with_images(
-            include_price_embeddings=include_price_embeddings,
-            upload_to_storage=True
-        )
-    else:
-        result = db_interface.import_cards(include_price_embeddings=include_price_embeddings)
-    
+    verbose = data.get('verbose', False)
+
+    log_stream = StringIO()
+    stream_handler = logging.StreamHandler(log_stream)
+    stream_handler.setLevel(logging.INFO)
+    root_logger = logging.getLogger()
+    root_logger.addHandler(stream_handler)
+
+    try:
+        if upload_images_to_storage:
+            result = db_interface.import_cards_with_images(
+                include_price_embeddings=include_price_embeddings,
+                upload_to_storage=True
+            )
+        else:
+            result = db_interface.import_cards(include_price_embeddings=include_price_embeddings)
+    finally:
+        root_logger.removeHandler(stream_handler)
+        stream_handler.flush()
+    logs = log_stream.getvalue().splitlines()
+    log_stream.close()
+
+    response_data = {"success": bool(result)}
     if result:
-        return jsonify({"success": True, "message": "Data imported successfully"})
+        response_data["message"] = "Data imported successfully"
     else:
-        return jsonify({"success": False, "error": "Failed to import data"}), 500
+        response_data["error"] = "Failed to import data"
+    if verbose:
+        response_data["logs"] = logs
+
+    if result:
+        return jsonify(response_data)
+    else:
+        return jsonify(response_data), 500
 
 @app.route('/api/database/status', methods=['GET'])
 def database_status():
