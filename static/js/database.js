@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('dbImportBtn').addEventListener('click', function() {
         toggleLoading('db', true);
         
-        makeApiRequest(`${getApiUrl()}/api/database/import`, 'POST', { include_price_embeddings: true })
+        makeApiRequest(`${getApiUrl()}/api/database/import`, 'POST', { include_price_embeddings: true, verbose: true })
             .then(data => {
                 displayResult('db', data);
             })
