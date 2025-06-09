@@ -384,23 +384,22 @@ class EnhancedMTGRAGSystem:
     
     def _passes_filters(self, card: Dict[str, Any], filters: Dict[str, Any]) -> bool:
         """Check if card passes the given filters"""
-        # Color filter - UPDATED TO HANDLE COLORLESS
+        # Color filter - enforce that card colors are a subset of the requested set
         if 'colors' in filters:
             card_colors = card.get('color_identity', [])
             if isinstance(card_colors, str):
                 card_colors = card_colors.split(',') if card_colors else []
-            
-            required_colors = filters['colors']
-            
-            # Special handling for colorless filter
-            if 'C' in required_colors:
-                # If colorless is requested, only show colorless cards (empty color identity)
-                if card_colors:  # If card has any colors, exclude it
+
+            required_colors = set(filters['colors'])
+
+            # Only colorless cards if 'C' is the sole requirement
+            if required_colors == {'C'}:
+                if card_colors:
                     return False
             elif required_colors:
-                # For colored cards, check if any required color matches
-                # Colorless cards (empty color_identity) can be played in any deck
-                if card_colors and not any(color in card_colors for color in required_colors):
+                allowed_colors = required_colors - {'C'}
+                # Allow colorless cards unless explicitly filtering only colorless
+                if card_colors and not set(card_colors).issubset(allowed_colors):
                     return False
         
         # Type filter

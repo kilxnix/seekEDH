@@ -1,8 +1,10 @@
 # seekedh Frontend
 
 This React app provides a simple interface for the **enhanced card search** API.
-It allows you to query the backend and filter results by card colors. Images are
-displayed using `object-contain` so artwork is never cropped.
+It allows you to query the backend and filter results by card colors. The color
+filter matches the selected color identity exactly, so choosing `U` and `B` will
+only return cards whose colors are a subset of those two. Images are displayed
+using `object-contain` so artwork is never cropped.
 
 If the enhanced endpoint is unavailable or slow, the frontend automatically
 falls back to the standard universal search so you always get results.
