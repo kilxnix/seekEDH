@@ -42,89 +42,81 @@ class MTGImageManager:
         self.fallback_enabled = True
     
     def get_card_image_info(self, card_name_or_id: str, size: str = 'normal') -> Optional[ImageInfo]:
-        """Get comprehensive image information for a card"""
+        """Get comprehensive image information for a card."""
         try:
-            # Try to find card by name first, then by ID
             card_data = None
-            
+
             if self.db.is_connected:
-                # Try by name
                 response = self.db.client.table("mtg_cards").select(
                     "scryfall_id, name, storage_image_urls, local_image_paths, image_uris"
                 ).eq("name", card_name_or_id).limit(1).execute()
-                
+
                 if not response.data:
-                    # Try by scryfall_id
                     response = self.db.client.table("mtg_cards").select(
                         "scryfall_id, name, storage_image_urls, local_image_paths, image_uris"
                     ).eq("scryfall_id", card_name_or_id).limit(1).execute()
-                
+
                 if response.data:
                     card_data = response.data[0]
-            
+
             if not card_data:
                 return None
-            
+
             card_id = card_data['scryfall_id']
             image_info = ImageInfo(card_id=card_id, size=size)
-            
-            # Check storage URLs first
-            if card_data.get('storage_image_urls'):
-                try:
-                    storage_urls = card_data['storage_image_urls']
-                    if isinstance(storage_urls, str):
-                        storage_urls = json.loads(storage_urls)
-                    
-                    if size in storage_urls:
-                        image_info.storage_url = storage_urls[size]
-                        image_info.status = 'storage'
-                        return image_info
-                except:
-                    pass
-            
-            # Check local paths
-            if card_data.get('local_image_paths'):
-                try:
-                    local_paths = card_data['local_image_paths']
-                    if isinstance(local_paths, str):
-                        local_paths = json.loads(local_paths)
-                    
-                    if size in local_paths:
-                        local_path = local_paths[size]
-                        if os.path.exists(local_path):
-                            image_info.local_path = local_path
-                            image_info.file_size = os.path.getsize(local_path)
-                            image_info.status = 'local'
-                            return image_info
-                except:
-                    pass
-            
-            # Fallback to original Scryfall URLs
-            if card_data.get('image_uris'):
-                try:
-                    image_uris = card_data['image_uris']
-                    if isinstance(image_uris, str):
-                        image_uris = json.loads(image_uris)
-                    
-                    if size in image_uris:
-                        image_info.original_url = image_uris[size]
-                        image_info.status = 'original'
-                        return image_info
-                except:
-                    pass
-            
-            # Try alternative sizes if requested size not found
+
+            sizes_to_try = [size]
             if self.fallback_enabled:
-                for alt_size in self.preferred_sizes:
-                    if alt_size != size:
-                        alt_info = self.get_card_image_info(card_name_or_id, alt_size)
-                        if alt_info and alt_info.status != 'unknown':
-                            alt_info.size = alt_size  # Keep the actual size found
-                            return alt_info
-            
+                sizes_to_try += [s for s in self.preferred_sizes if s != size]
+
+            for current_size in sizes_to_try:
+                if card_data.get('storage_image_urls'):
+                    try:
+                        storage_urls = card_data['storage_image_urls']
+                        if isinstance(storage_urls, str):
+                            storage_urls = json.loads(storage_urls)
+
+                        if current_size in storage_urls:
+                            image_info.storage_url = storage_urls[current_size]
+                            image_info.status = 'storage'
+                            image_info.size = current_size
+                            return image_info
+                    except Exception:
+                        pass
+
+                if card_data.get('local_image_paths'):
+                    try:
+                        local_paths = card_data['local_image_paths']
+                        if isinstance(local_paths, str):
+                            local_paths = json.loads(local_paths)
+
+                        if current_size in local_paths:
+                            local_path = local_paths[current_size]
+                            if os.path.exists(local_path):
+                                image_info.local_path = local_path
+                                image_info.file_size = os.path.getsize(local_path)
+                                image_info.status = 'local'
+                                image_info.size = current_size
+                                return image_info
+                    except Exception:
+                        pass
+
+                if card_data.get('image_uris'):
+                    try:
+                        image_uris = card_data['image_uris']
+                        if isinstance(image_uris, str):
+                            image_uris = json.loads(image_uris)
+
+                        if current_size in image_uris:
+                            image_info.original_url = image_uris[current_size]
+                            image_info.status = 'original'
+                            image_info.size = current_size
+                            return image_info
+                    except Exception:
+                        pass
+
             image_info.status = 'not_found'
             return image_info
-            
         except Exception as e:
             logger.error(f"Error getting image info for {card_name_or_id}: {e}")
             return ImageInfo(
@@ -133,7 +125,6 @@ class MTGImageManager:
                 status='error',
                 error=str(e)
             )
-    
     def get_best_image_url(self, card_name_or_id: str, size: str = 'normal', 
                           prefer_storage: bool = True) -> Optional[str]:
         """Get the best available image URL for a card"""
