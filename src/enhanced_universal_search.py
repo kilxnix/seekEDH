@@ -31,19 +31,19 @@ class EnhancedUniversalSearchHandler:
             r"'([^']+)'",
 
             # FIXED: Direct mentions with proper word boundaries
-            r'(?:with|using|like|including)\s+([A-Z][A-Za-z\s,\'\-]{2,40})(?=\s*(?:deck|commander|and|,|\.|$))',
+            r'(?:with|using|like|including)\s+([A-Z][A-Za-z0-9\s,\'/\-]{2,40})(?=\s*(?:deck|commander|and|,|\.|$))',
 
             # FIXED: Better synergy patterns
-            r'(?:synergies?\s+(?:for|with))\s+([A-Z][A-Za-z\s,\'\-]{2,40})(?=\s*(?:deck|and|,|\.|$))',
+            r'(?:synergies?\s+(?:for|with))\s+([A-Z][A-Za-z0-9\s,\'/\-]{2,40})(?=\s*(?:deck|and|,|\.|$))',
 
             # FIXED: Deck/commander mentions
-            r'(?:my|the)\s+([A-Z][A-Za-z\s,\'\-]{3,40})\s+(?:deck|commander)',
+            r'(?:my|the)\s+([A-Z][A-Za-z0-9\s,\'/\-]{3,40})\s+(?:deck|commander)',
 
             # FIXED: Standalone title case phrases (2-4 words) - but more restrictive
-            r'\b([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:\s+[A-Z][a-z]+)?)\b(?=\s*(?:deck|commander|,|\.|$|and))',
+            r'\b([A-Z][A-Za-z0-9/\-]+(?:\s+[A-Z][A-Za-z0-9/\-]+){1,3})\b(?=\s*(?:deck|commander|,|\.|$|and))',
 
             # FIXED: Card names at end of sentence
-            r'(?:with|using)\s+([A-Z][A-Za-z\s,\'\-]{3,40})$'
+            r'(?:with|using)\s+([A-Z][A-Za-z0-9\s,\'/\-]{3,40})$'
         ]
 
         # IMPROVED: Known MTG card name patterns for validation
@@ -437,6 +437,11 @@ class EnhancedUniversalSearchHandler:
             resp = requests.get(
                 f"https://api.scryfall.com/cards/named?exact={encoded}", timeout=10
             )
+            if resp.status_code != 200:
+                resp = requests.get(
+                    f"https://api.scryfall.com/cards/named?fuzzy={encoded}", timeout=10
+                )
+
             if resp.status_code == 200:
                 data = resp.json()
                 colors = data.get("color_identity", [])
@@ -493,10 +498,31 @@ class EnhancedUniversalSearchHandler:
             if response.data:
                 return response.data[0]
 
+
             # Try case-insensitive match
-            response = self.rag.db.client.table("mtg_cards").select(
-                "id, name, type_line, color_identity, oracle_text, mana_cost, prices_usd"
-            ).ilike("name", card_name).limit(1).execute()
+            response = (
+                self.rag.db.client.table("mtg_cards")
+                .select(
+                    "id, name, type_line, color_identity, oracle_text, mana_cost, prices_usd"
+                )
+                .ilike("name", card_name)
+                .limit(1)
+                .execute()
+            )
+
+            if response.data:
+                return response.data[0]
+
+            # Handle front-face names of double-faced cards
+            response = (
+                self.rag.db.client.table("mtg_cards")
+                .select(
+                    "id, name, type_line, color_identity, oracle_text, mana_cost, prices_usd"
+                )
+                .ilike("name", f"{card_name} //%")
+                .limit(1)
+                .execute()
+            )
 
             if response.data:
                 return response.data[0]
