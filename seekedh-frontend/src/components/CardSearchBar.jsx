@@ -3,48 +3,18 @@ import { enhancedCardSearch } from "../api";
 
 export default function CardSearchBar({ setResults, setLoading, loading }) {
   const [query, setQuery] = useState("");
-  const [colors, setColors] = useState([]);
-
-  const toggleColor = (color) => {
-    setColors((prev) =>
-      prev.includes(color)
-        ? prev.filter((c) => c !== color)
-        : [...prev, color]
-    );
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true);
-    const filters = {};
-    if (colors.length) filters.colors = colors;
-    const results = await enhancedCardSearch(query, filters);
+    const results = await enhancedCardSearch(query);
     setResults(results);
     setLoading(false);
   };
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-xl flex flex-col gap-3 mb-8">
-      <div className="flex flex-wrap justify-center gap-3">
-        {[
-          { code: "W", label: "White" },
-          { code: "U", label: "Blue" },
-          { code: "B", label: "Black" },
-          { code: "R", label: "Red" },
-          { code: "G", label: "Green" },
-        ].map((c) => (
-          <label key={c.code} className="flex items-center gap-1 text-sm">
-            <input
-              type="checkbox"
-              checked={colors.includes(c.code)}
-              onChange={() => toggleColor(c.code)}
-              className="form-checkbox text-blue-500"
-            />
-            {c.label}
-          </label>
-        ))}
-      </div>
       <div className="flex gap-2">
         <input
           className="flex-1 p-4 rounded-xl bg-gray-800 border border-gray-700 text-white outline-none text-lg transition-all focus:ring-2 focus:ring-blue-500"
