@@ -979,9 +979,9 @@ class EnhancedUniversalSearchHandler:
         elif not isinstance(card_colors, list):
             return False
 
-        # Colorless cards can always be played
+        # If still empty after fetching, treat as unknown (incompatible)
         if not card_colors:
-            return True
+            return False
 
         # Check if all card colors are in allowed colors
         return all(color in allowed_colors for color in card_colors)
