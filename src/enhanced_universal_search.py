@@ -414,6 +414,44 @@ class EnhancedUniversalSearchHandler:
             logger.error(f"Error finding fuzzy match for {card_name}: {e}")
             return None
 
+    def _fetch_color_identity_online(self, card_name: str) -> List[str]:
+        """Fetch a card's color identity from Scryfall with local caching"""
+        cache_file = os.path.join("data", "color_identity_cache.json")
+
+        if not hasattr(self, "_color_cache"):
+            self._color_cache = {}
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, "r") as f:
+                        self._color_cache = json.load(f)
+                except Exception as e:
+                    logger.warning(f"Failed to load color cache: {e}")
+
+        if card_name in self._color_cache:
+            return self._color_cache[card_name]
+
+        try:
+            import requests
+
+            encoded = requests.utils.quote(card_name)
+            resp = requests.get(
+                f"https://api.scryfall.com/cards/named?exact={encoded}", timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                colors = data.get("color_identity", [])
+                self._color_cache[card_name] = colors
+                try:
+                    with open(cache_file, "w") as f:
+                        json.dump(self._color_cache, f)
+                except Exception as e:
+                    logger.warning(f"Failed to save color cache: {e}")
+                return colors
+        except Exception as e:
+            logger.warning(f"Error fetching color identity for {card_name}: {e}")
+
+        return []
+
     def validate_and_lookup_cards(self, potential_cards: List[str]) -> Tuple[List[Dict], List[str], List[Dict]]:
         """FIXED: Validate card names against database with better error handling"""
         found_cards = []
@@ -492,7 +530,15 @@ class EnhancedUniversalSearchHandler:
         all_colors = set()
 
         for card in cards:
-            color_identity = card.get('color_identity', [])
+            color_identity = card.get('color_identity')
+
+            # If color identity missing, attempt to fetch from cache/online
+            if not color_identity and card.get('name'):
+                fetched = self._fetch_color_identity_online(card['name'])
+                if fetched:
+                    color_identity = fetched
+                    card['color_identity'] = fetched
+
             if isinstance(color_identity, list):
                 all_colors.update(color_identity)
             elif isinstance(color_identity, str):
@@ -896,13 +942,16 @@ class EnhancedUniversalSearchHandler:
 
     def _is_color_compatible(self, card: Dict, allowed_colors: List[str]) -> bool:
         """Check if card can be played in the given color identity"""
-        card_colors = card.get('color_identity', [])
+        card_colors = card.get('color_identity')
+
+        if card_colors is None:
+            return False
 
         # Handle different color identity formats
         if isinstance(card_colors, str):
             card_colors = [c.strip() for c in card_colors.split(',') if c.strip()]
         elif not isinstance(card_colors, list):
-            card_colors = []
+            return False
 
         # Colorless cards can always be played
         if not card_colors:
