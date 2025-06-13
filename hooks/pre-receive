@@ -1,0 +1,4 @@
+#!/bin/sh
+# Reject all pushes to this repository
+printf "Pushes are disabled for this repository.\n" >&2
+exit 1
