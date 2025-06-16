@@ -144,6 +144,12 @@ class EnhancedUniversalSearchHandler:
                 'cards': potential_cards,
                 'constraints': constraints
             }
+        elif constraints.get('strategies'):
+            # Strategy oriented search (e.g., "ramp deck")
+            return {
+                'type': 'strategy_search',
+                'constraints': constraints
+            }
         elif has_category_words or any(constraints.values()):
             # This looks like a category search
             return {
@@ -168,7 +174,7 @@ class EnhancedUniversalSearchHandler:
             'deck_context': None
         }
 
-        # Extract colors
+        # Extract colors from full words
         for color_word, color_codes in self.category_patterns['colors'].items():
             if color_word in query_lower:
                 if isinstance(color_codes, list):
@@ -177,6 +183,13 @@ class EnhancedUniversalSearchHandler:
                     constraints['mono'] = True
                 elif color_codes == 'multi':
                     constraints['multicolor'] = True
+
+        # NEW: Extract color abbreviations like "UB" or "WUG"
+        abbr_matches = re.findall(r'\b[WUBRG]{1,5}\b', query_text.upper())
+        for abbr in abbr_matches:
+            for letter in abbr:
+                if letter not in constraints['colors']:
+                    constraints['colors'].append(letter)
 
         # Extract card types
         for type_word, type_name in self.category_patterns['types'].items():
@@ -755,6 +768,29 @@ class EnhancedUniversalSearchHandler:
 
         return " ".join(parts) + "."
 
+    def perform_strategy_search(self, constraints: Dict[str, Any], query_context: str) -> Dict[str, Any]:
+        """Generate a deck recommendation for a given strategy"""
+        try:
+            strategy = " ".join(constraints.get('strategies', [])) or query_context
+            colors = constraints.get('colors', []) or None
+            budget = constraints.get('budget')
+            commander = constraints.get('deck_context')
+
+            deck = self.rag.generate_deck_recommendation(strategy, commander, budget, colors)
+
+            if 'cards' in deck:
+                return {
+                    'success': True,
+                    'query_type': 'strategy_search',
+                    'deck': deck,
+                    'constraints_applied': constraints
+                }
+            return {'success': False, 'error': deck.get('error', 'No results')}
+
+        except Exception as e:
+            logger.error(f"Error in strategy search: {e}")
+            return {'success': False, 'error': str(e)}
+
     def find_synergistic_cards(self, seed_cards: List[Dict], color_identity: List[str], query_context: str) -> List[Dict]:
         """FIXED: Find cards that synergize with the seed cards"""
         all_synergistic = []
@@ -1092,6 +1128,10 @@ class EnhancedUniversalSearchHandler:
                 # This is a category search query
                 logger.info("Processing as category search")
                 return self.perform_category_search(constraints, query_text)
+
+            elif query_type == 'strategy_search':
+                logger.info("Processing as strategy search")
+                return self.perform_strategy_search(constraints, query_text)
 
             else:
                 # General search fallback
