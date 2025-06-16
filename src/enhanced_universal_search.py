@@ -6,6 +6,11 @@ import logging
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 
+try:
+    import requests  # used for Scryfall fallback
+except Exception:  # pragma: no cover - requests may be missing
+    requests = None
+
 logger = logging.getLogger("EnhancedUniversalSearch")
 
 class EnhancedUniversalSearchHandler:
@@ -168,7 +173,7 @@ class EnhancedUniversalSearchHandler:
             'deck_context': None
         }
 
-        # Extract colors
+        # Extract colors from full words
         for color_word, color_codes in self.category_patterns['colors'].items():
             if color_word in query_lower:
                 if isinstance(color_codes, list):
@@ -177,6 +182,13 @@ class EnhancedUniversalSearchHandler:
                     constraints['mono'] = True
                 elif color_codes == 'multi':
                     constraints['multicolor'] = True
+
+        # NEW: Extract color abbreviations like "UB" or "WUG"
+        abbr_matches = re.findall(r'\b[WUBRG]{1,5}\b', query_text.upper())
+        for abbr in abbr_matches:
+            for letter in abbr:
+                if letter not in constraints['colors']:
+                    constraints['colors'].append(letter)
 
         # Extract card types
         for type_word, type_name in self.category_patterns['types'].items():
@@ -457,6 +469,34 @@ class EnhancedUniversalSearchHandler:
 
         return []
 
+    def _search_scryfall(self, query: str, limit: int = 30) -> List[Dict]:
+        """Search Scryfall API as a fallback when local results are empty"""
+        if requests is None:
+            return []
+        try:
+            encoded = requests.utils.quote(query)
+            resp = requests.get(
+                f"https://api.scryfall.com/cards/search?q={encoded}", timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                cards = data.get("data", [])
+                results = []
+                for card in cards[:limit]:
+                    prices = card.get("prices", {})
+                    results.append({
+                        "id": card.get("id"),
+                        "name": card.get("name"),
+                        "type_line": card.get("type_line"),
+                        "oracle_text": card.get("oracle_text"),
+                        "color_identity": card.get("color_identity", []),
+                        "prices_usd": prices.get("usd")
+                    })
+                return results
+        except Exception as e:  # pragma: no cover - network failures
+            logger.warning(f"Scryfall search failed: {e}")
+        return []
+
     def validate_and_lookup_cards(self, potential_cards: List[str]) -> Tuple[List[Dict], List[str], List[Dict]]:
         """FIXED: Validate card names against database with better error handling"""
         found_cards = []
@@ -632,6 +672,12 @@ class EnhancedUniversalSearchHandler:
 
             # Apply filters
             filtered_cards = self._apply_category_filters(matching_cards, constraints)
+
+            # Fallback to Scryfall search if no results
+            if not filtered_cards:
+                remote_cards = self._search_scryfall(search_query, limit=40)
+                if remote_cards:
+                    filtered_cards = self._apply_category_filters(remote_cards, constraints)
 
             # Add relevance scores and explanations
             for card in filtered_cards:
@@ -1135,6 +1181,10 @@ class EnhancedUniversalSearchHandler:
                 else:
                     # Last resort: search for "artifact"
                     matching_cards = self.rag.search_cards_by_keyword("artifact", top_k=30)
+
+            # If still no results, try Scryfall
+            if not matching_cards:
+                matching_cards = self._search_scryfall(query_text, limit=30)
 
             # Apply context filters if provided
             if context and matching_cards:
