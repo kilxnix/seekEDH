@@ -92,7 +92,7 @@
                             <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
                                 <div class="position-relative">
                                     ${imageUrl ? 
-                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">
+                                        `<img src="${imageUrl}" class="card-image-small hover-enlarge" alt="${card.name}" loading="lazy">
                                          <span class="card-image-status status-${imageStatus}">${imageStatus}</span>` :
                                         `<div class="card-image-placeholder">No Image</div>`
                                     }
@@ -189,6 +189,16 @@
             z-index: 10;
             position: relative;
         }
+
+        /* Larger zoom for card previews */
+        .hover-enlarge {
+            transition: transform 0.2s ease;
+        }
+        .hover-enlarge:hover {
+            transform: scale(2);
+            z-index: 20;
+            position: relative;
+        }
         
         .hoverable-card {
             cursor: pointer;
@@ -245,7 +255,7 @@
         }
         
         .image-grid .image-grid-item {
-            min-height: 300px;
+            min-height: 220px;
         }
         
         .card-image {
@@ -793,7 +803,7 @@
                             <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
                                 <div class="position-relative">
                                     ${imageUrl ? 
-                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">` :
+                                        `<img src="${imageUrl}" class="card-image-small hover-enlarge" alt="${card.name}" loading="lazy">` :
                                         `<div class="card-image-placeholder">No Image</div>`
                                     }
                                     <span class="badge bg-success position-absolute top-0 end-0 m-2">${synergyScore}%</span>
@@ -845,7 +855,7 @@
                             <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
                                 <div class="position-relative">
                                     ${imageUrl ? 
-                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">` :
+                                        `<img src="${imageUrl}" class="card-image-small hover-enlarge" alt="${card.name}" loading="lazy">` :
                                         `<div class="card-image-placeholder">No Image</div>`
                                     }
                                     <span class="badge bg-info position-absolute top-0 end-0 m-2">${similarity}%</span>
@@ -903,7 +913,7 @@
                             <div class="image-grid-item hoverable-card" onclick="showImageModal('${card.name}', ${JSON.stringify(card).replace(/"/g, '&quot;')})">
                                 <div class="position-relative">
                                     ${imageUrl ? 
-                                        `<img src="${imageUrl}" class="card-image hover-zoom" alt="${card.name}" loading="lazy">` :
+                                        `<img src="${imageUrl}" class="card-image-small hover-enlarge" alt="${card.name}" loading="lazy">` :
                                         `<div class="card-image-placeholder">No Image</div>`
                                     }
                                 </div>
