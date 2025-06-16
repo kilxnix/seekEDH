@@ -62,6 +62,7 @@ image_manager = MTGImageManager(db_interface, data_pipeline) if IMAGE_MANAGER_AV
 # Initialize enhanced RAG system
 enhanced_rag = None
 image_embeddings_generator = None
+universal_search_handler = None
 
 def get_enhanced_rag():
     """Get or create enhanced RAG instance"""
@@ -85,6 +86,22 @@ def get_image_embeddings_generator():
         except Exception as e:
             logger.error(f"Error initializing image embeddings generator: {e}")
     return image_embeddings_generator
+
+def get_universal_search_handler():
+    """Get or create the universal search handler"""
+    global universal_search_handler
+    rag_system = get_enhanced_rag()
+    if rag_system is None:
+        return None
+    if universal_search_handler is None:
+        try:
+            from src.enhanced_universal_search import EnhancedUniversalSearchHandler
+            universal_search_handler = EnhancedUniversalSearchHandler(rag_system.rag)
+            logger.info("Universal search handler initialized")
+        except Exception as e:
+            logger.error(f"Error initializing universal search handler: {e}")
+            universal_search_handler = None
+    return universal_search_handler
 
 # Create Flask app
 app = Flask(__name__)
@@ -463,15 +480,24 @@ def enhanced_search():
         enhanced_rag_system = get_enhanced_rag()
         if not enhanced_rag_system:
             return jsonify({"error": "Enhanced RAG system not available"}), 400
-        
-        result = enhanced_rag_system.enhanced_search(
-            query=query,
-            filters=filters,
-            top_k=top_k,
-            image_size=image_size,
-            include_images=include_images
-        )
-        
+
+        universal_handler = get_universal_search_handler()
+        if not universal_handler:
+            return jsonify({"error": "Universal search handler not available"}), 500
+
+        # Use the universal search handler to process the query with optional context
+        result = universal_handler.process_universal_query(query, filters)
+
+        # Enhance returned cards with images if requested
+        if result.get('success') and include_images and 'cards' in result:
+            result['cards'] = enhanced_rag_system.enhance_cards_with_images(
+                result['cards'], image_size
+            )
+            result['metadata'] = {
+                "image_size": image_size,
+                "includes_images": include_images
+            }
+
         return jsonify(result)
         
     except Exception as e:

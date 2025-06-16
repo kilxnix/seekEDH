@@ -168,7 +168,7 @@ class EnhancedUniversalSearchHandler:
             'deck_context': None
         }
 
-        # Extract colors
+        # Extract colors from full words
         for color_word, color_codes in self.category_patterns['colors'].items():
             if color_word in query_lower:
                 if isinstance(color_codes, list):
@@ -177,6 +177,13 @@ class EnhancedUniversalSearchHandler:
                     constraints['mono'] = True
                 elif color_codes == 'multi':
                     constraints['multicolor'] = True
+
+        # NEW: Extract color abbreviations like "UB" or "WUG"
+        abbr_matches = re.findall(r'\b[WUBRG]{1,5}\b', query_text.upper())
+        for abbr in abbr_matches:
+            for letter in abbr:
+                if letter not in constraints['colors']:
+                    constraints['colors'].append(letter)
 
         # Extract card types
         for type_word, type_name in self.category_patterns['types'].items():
