@@ -119,17 +119,36 @@ class MTGRetrievalSystem:
     def _initialize_text_index(self):
         """Initialize the text embedding index from the database"""
         try:
-            # Fetch cards with oracle text
+            # Fetch cards with oracle text without an explicit limit
             logger.info("Fetching cards with oracle text from database")
-            response = self.db.client.table("mtg_cards").select(
-                "id, name, oracle_text"
-            ).not_.is_("oracle_text", "null").limit(5000).execute()
-            
-            if not response.data:
+            batch_size = 1000
+            offset = 0
+            cards_with_text = []
+
+            while True:
+                batch_response = (
+                    self.db.client
+                    .table("mtg_cards")
+                    .select("id, name, oracle_text")
+                    .not_.is_("oracle_text", "null")
+                    .range(offset, offset + batch_size - 1)
+                    .execute()
+                )
+
+                if not batch_response.data:
+                    break
+
+                cards_with_text.extend(batch_response.data)
+
+                if len(batch_response.data) < batch_size:
+                    break
+
+                offset += batch_size
+
+            if not cards_with_text:
                 logger.warning("No cards with oracle text found in database")
                 return False
-            
-            cards_with_text = response.data
+
             logger.info(f"Found {len(cards_with_text)} cards with oracle text")
             
             # Extract texts and ids

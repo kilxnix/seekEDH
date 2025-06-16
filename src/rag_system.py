@@ -119,17 +119,36 @@ class MTGRetrievalSystem:
     def _initialize_text_index(self):
         """FIXED: Initialize text index with dimension validation"""
         try:
-            # Fetch cards with text embeddings
+            # Fetch cards with text embeddings without an explicit limit
             logger.info("Fetching cards with text embeddings from database")
-            response = self.db.client.table("mtg_cards").select(
-                "id, name, oracle_text, text_embedding"
-            ).not_.is_("text_embedding", "null").limit(5000).execute()
-            
-            if not response.data:
+            batch_size = 1000
+            offset = 0
+            cards_with_text = []
+
+            while True:
+                batch_response = (
+                    self.db.client
+                    .table("mtg_cards")
+                    .select("id, name, oracle_text, text_embedding")
+                    .not_.is_("text_embedding", "null")
+                    .range(offset, offset + batch_size - 1)
+                    .execute()
+                )
+
+                if not batch_response.data:
+                    break
+
+                cards_with_text.extend(batch_response.data)
+
+                if len(batch_response.data) < batch_size:
+                    break
+
+                offset += batch_size
+
+            if not cards_with_text:
                 logger.warning("No cards with text embeddings found in database")
                 return False
-            
-            cards_with_text = response.data
+
             logger.info(f"Found {len(cards_with_text)} cards with text embeddings")
             
             # Extract and validate embeddings
